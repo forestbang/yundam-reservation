@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "reservations": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["date", "reservationNumber"]
+    },
+    "tableBookingIndex": {
+      ".read": true,
+      ".write": true
+    },
+    "counters": {
+      ".read": true,
+      ".write": true
+    },
+    "tables": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "menu": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "businessHours": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "settings": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "restaurant": {
+      ".read": true,
+      ".write": "auth != null"
+    }
+  }
+}

@@ -1,0 +1,184 @@
+@font-face {
+  font-family: "Cafe24OnePrettyNight";
+  src: url("../assets/Cafe24-Oneprettynight.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+:root {
+  --brand: #E94E1B;
+  --navy: #1A365D;
+  --bg: #FAF8F6;
+  --card: #FFFFFF;
+  --border: #E7E2DC;
+  --gray: #767676;
+  --gray-light: #EFEBE6;
+  --blue: #4A90D9;
+  --orange: #E8963B;
+  --green: #7FB069;
+  --red: #E05555;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+  background: var(--bg);
+  color: #222;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.brand-font { font-family: "Cafe24OnePrettyNight", sans-serif; }
+
+header.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+header.top-bar img.logo-icon { width: 32px; height: 32px; border-radius: 8px; }
+header.top-bar .brand-font { font-size: 22px; color: var(--navy); }
+header.top-bar nav { margin-left: auto; display: flex; gap: 14px; font-size: 14px; }
+header.top-bar nav a { color: var(--gray); text-decoration: none; }
+header.top-bar nav a.active { color: var(--brand); font-weight: bold; }
+
+main.container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px 100px;
+}
+main.container.wide { max-width: 1100px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+h1.page-title { font-size: 20px; margin: 6px 0 18px; color: var(--navy); }
+h2.section-title { font-size: 16px; color: var(--navy); margin: 0 0 12px; }
+
+.big-btn {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  margin-bottom: 10px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.big-btn:hover { border-color: var(--brand); }
+.big-btn.selected { background: var(--brand); border-color: var(--brand); color: white; }
+.big-btn.disabled { color: #bbb; background: var(--gray-light); cursor: not-allowed; border-color: var(--gray-light); }
+.big-btn.disabled:hover { border-color: var(--gray-light); }
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: var(--navy);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-primary:disabled { background: #bbb; cursor: not-allowed; }
+.btn-secondary {
+  display: inline-block;
+  padding: 10px 16px;
+  background: var(--gray-light);
+  color: #333;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn-danger { background: var(--red); color: white; }
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.slot-grid .big-btn { margin-bottom: 0; padding: 14px; font-size: 15px; }
+
+input[type="text"], input[type="tel"], input[type="date"], textarea, select {
+  width: 100%;
+  padding: 13px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+  margin-bottom: 14px;
+  font-family: inherit;
+}
+label { display: block; font-size: 14px; color: var(--gray); margin-bottom: 6px; }
+
+.error-box { background: #FFF0EE; color: #C0392B; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
+.hint { font-size: 13px; color: var(--gray); margin: -8px 0 14px; }
+
+.result-box { text-align: center; padding: 30px 16px; }
+.result-box .num { font-size: 24px; font-weight: bold; color: var(--brand); margin: 14px 0; }
+.result-box .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+
+/* 관리자 */
+.dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.dash-card { padding: 12px 8px; border-radius: 10px; text-align: center; color: white; }
+.dash-card .num { font-size: 20px; font-weight: bold; }
+.dash-card .label { font-size: 11px; opacity: 0.9; }
+
+.res-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 8px; flex-wrap: wrap;
+}
+.res-row .time { font-weight: bold; width: 52px; }
+.res-row .info { flex: 1; min-width: 140px; font-size: 14px; }
+.res-row select.status-select { width: auto; margin: 0; padding: 8px 10px; font-size: 13px; }
+.res-row .quick-done { background: var(--green); color: white; border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+
+.fab-row { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; padding: 0 16px; display: flex; gap: 10px; }
+.fab-row button { flex: 1; padding: 16px; border: none; border-radius: 12px; background: var(--navy); color: white; font-weight: bold; font-size: 15px; cursor: pointer; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: none; align-items: flex-end; justify-content: center; z-index: 50;
+}
+.modal-overlay.open { display: flex; }
+.modal-box { background: white; width: 100%; max-width: 480px; border-radius: 18px 18px 0 0; padding: 22px 18px 30px; max-height: 88vh; overflow-y: auto; }
+
+@media (min-width: 900px) {
+  .modal-overlay { align-items: center; }
+  .modal-box { border-radius: 18px; max-width: 420px; }
+  main.container.wide .admin-grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+}
+
+.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; color: white; }
+.badge.st-예약 { background: var(--blue); }
+.badge.st-도착 { background: var(--orange); }
+.badge.st-착석 { background: var(--orange); }
+.badge.st-이용중 { background: var(--orange); }
+.badge.st-완료 { background: var(--green); }
+.badge.st-취소 { background: var(--gray); }
+.badge.st-노쇼 { background: var(--red); }
+
+.menu-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.menu-item .price { color: var(--brand); font-weight: bold; }
+
+.login-box { max-width: 340px; margin: 60px auto; text-align: center; }
+.login-box img { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 14px; }
