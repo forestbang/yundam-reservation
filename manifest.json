@@ -1,6 +1,6 @@
 {
-  "name": "윤담 예약",
-  "short_name": "윤담",
+  "name": "윤담, 언제?",
+  "short_name": "윤담,언제?",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#E94E1B",
