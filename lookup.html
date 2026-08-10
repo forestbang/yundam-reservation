@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 - 예약조회</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담</span>
+  <nav>
+    <a href="index.html">예약</a>
+    <a href="menu.html">메뉴</a>
+    <a href="lookup.html" class="active">예약조회</a>
+  </nav>
+</header>
+<main class="container">
+  <h1 class="page-title">예약 조회 / 취소</h1>
+
+  <div class="card" id="searchCard">
+    <label>예약번호</label>
+    <input type="text" id="numInput" placeholder="예: R20260815-001">
+    <label>전화번호</label>
+    <input type="tel" id="phoneInput" placeholder="예약하실 때 입력한 전화번호">
+    <div id="err" class="error-box" style="display:none;"></div>
+    <button class="btn-primary" id="searchBtn">조회하기</button>
+  </div>
+
+  <div class="card result-box" id="resultCard" style="display:none;">
+    <div class="row"><span>예약번호</span><b id="rNum"></b></div>
+    <div class="row"><span>날짜</span><b id="rDate"></b></div>
+    <div class="row"><span>시간</span><b id="rTime"></b></div>
+    <div class="row"><span>인원</span><b id="rParty"></b></div>
+    <div class="row"><span>예약자</span><b id="rName"></b></div>
+    <div class="row"><span>상태</span><b id="rStatus"></b></div>
+    <button class="btn-primary btn-danger" id="cancelBtn" style="margin-top:18px;">예약 취소하기</button>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/booking.js"></script>
+<script>
+let currentReservation = null;
+
+document.getElementById("searchBtn").addEventListener("click", async () => {
+  const num = document.getElementById("numInput").value;
+  const phone = document.getElementById("phoneInput").value;
+  const err = document.getElementById("err");
+  err.style.display = "none";
+  if (!num || !phone) { err.textContent = "예약번호와 전화번호를 모두 입력해 주세요."; err.style.display = "block"; return; }
+
+  const btn = document.getElementById("searchBtn");
+  btn.disabled = true; btn.textContent = "조회중...";
+  const found = await findReservationByNumberAndPhone(num, phone);
+  btn.disabled = false; btn.textContent = "조회하기";
+
+  if (!found) { err.textContent = "일치하는 예약을 찾을 수 없습니다. 예약번호/전화번호를 다시 확인해 주세요."; err.style.display = "block"; return; }
+
+  currentReservation = found;
+  document.getElementById("rNum").textContent = found.reservationNumber;
+  document.getElementById("rDate").textContent = formatDateKorean(found.date);
+  document.getElementById("rTime").textContent = found.startTime;
+  document.getElementById("rParty").textContent = found.partySize + "명";
+  document.getElementById("rName").textContent = found.customerName;
+  document.getElementById("rStatus").textContent = found.status;
+  document.getElementById("resultCard").style.display = "block";
+  document.getElementById("cancelBtn").style.display = CLOSED_STATUSES.includes(found.status) ? "none" : "block";
+});
+
+document.getElementById("cancelBtn").addEventListener("click", async () => {
+  if (!currentReservation) return;
+  if (!confirm("정말 예약을 취소하시겠습니까?")) return;
+  await cancelReservationByCustomer(currentReservation.id);
+  alert("예약이 취소되었습니다.");
+  location.reload();
+});
+</script>
+</body>
+</html>

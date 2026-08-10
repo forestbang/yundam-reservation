@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 - 메뉴</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담</span>
+  <nav>
+    <a href="index.html">예약</a>
+    <a href="menu.html" class="active">메뉴</a>
+    <a href="lookup.html">예약조회</a>
+  </nav>
+</header>
+<main class="container">
+  <h1 class="page-title">메뉴</h1>
+  <div class="card" id="menuList"></div>
+</main>
+<script src="js/common.js"></script>
+<script>
+const wrap = document.getElementById("menuList");
+MENU.forEach((m) => {
+  const row = document.createElement("div");
+  row.className = "menu-item";
+  row.innerHTML = `<span>${m.name}</span><span class="price">${m.price.toLocaleString()}원</span>`;
+  wrap.appendChild(row);
+});
+</script>
+</body>
+</html>
