@@ -48,6 +48,7 @@
     <div id="modalTimeRow">
       <label>시간</label>
       <select id="mTime"></select>
+      <button type="button" class="btn-secondary" id="checkAvailabilityBtn" style="width:100%;margin:-4px 0 14px;font-size:13px;">이 날짜 빈자리 확인 (시간표 새 창)</button>
     </div>
     <label>인원</label>
     <input type="text" id="mParty" placeholder="숫자만 입력 (예: 4)">
@@ -92,15 +93,56 @@ requireLogin(() => {
   listenToday();
 });
 
+let knownReservationIds = null;
+
 function listenToday() {
   const date = todayStr();
   db.ref("reservations").orderByChild("date").equalTo(date).on("value", (snap) => {
     const list = [];
     snap.forEach((child) => { list.push({ id: child.key, ...child.val() }); });
     list.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
+    checkForNewReservations(list);
     renderList(list);
     renderCounts(list);
   });
+}
+
+function checkForNewReservations(list) {
+  const currentIds = new Set(list.map((r) => r.id));
+  if (knownReservationIds === null) {
+    knownReservationIds = currentIds;
+    return;
+  }
+  const newOnes = list.filter((r) => !knownReservationIds.has(r.id));
+  knownReservationIds = currentIds;
+  newOnes.forEach((r) => notifyNewReservation(r));
+}
+
+function notifyNewReservation(r) {
+  playBeep();
+  const title = "새 예약: " + r.customerName;
+  const body = `${r.startTime} · ${r.partySize}명 · ${(r.tableIds||[]).join("+")}`;
+  if (window.Notification && Notification.permission === "granted") {
+    new Notification(title, { body, icon: "../assets/icon-192.png" });
+  }
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    o.stop(ctx.currentTime + 0.4);
+  } catch (e) {}
+}
+
+if (window.Notification && Notification.permission === "default") {
+  Notification.requestPermission();
 }
 
 function renderCounts(list) {
@@ -189,6 +231,11 @@ function fillTimeOptions() {
   const nearest = minToTime(Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
   if ([...sel.options].some((o) => o.value === nearest)) sel.value = nearest;
 }
+
+document.getElementById("checkAvailabilityBtn").addEventListener("click", () => {
+  const date = document.getElementById("mDate").value || todayStr();
+  window.open("tablemap.html?date=" + date, "_blank");
+});
 
 document.getElementById("mParty").addEventListener("input", (e) => {
   const n = parseInt(e.target.value, 10);

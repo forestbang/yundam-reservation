@@ -198,6 +198,9 @@ let currentList = [];
 let currentIndex = {};
 
 requireLogin(() => {
+  const params = new URLSearchParams(location.search);
+  const dateParam = params.get("date");
+  if (dateParam) selectedDate = dateParam;
   buildFloorPlan();
   document.getElementById("dateInput").value = selectedDate;
   listenDate(selectedDate);

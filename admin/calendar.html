@@ -50,6 +50,7 @@
     <input type="date" id="mDate">
     <label>시간</label>
     <select id="mTime"></select>
+    <button type="button" class="btn-secondary" id="checkAvailabilityBtn" style="width:100%;margin:-4px 0 14px;font-size:13px;">이 날짜 빈자리 확인 (시간표 새 창)</button>
     <label>인원</label>
     <input type="text" id="mParty" placeholder="숫자만 입력 (예: 4)">
     <label>이름</label>
@@ -219,6 +220,11 @@ function fillTimeOptions() {
     sel.appendChild(opt);
   });
 }
+
+document.getElementById("checkAvailabilityBtn").addEventListener("click", () => {
+  const date = document.getElementById("mDate").value || todayStr();
+  window.open("tablemap.html?date=" + date, "_blank");
+});
 
 document.getElementById("mParty").addEventListener("input", (e) => {
   const n = parseInt(e.target.value, 10);
