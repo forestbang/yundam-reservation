@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>윤담 관리자 - 오늘의 예약</title>
+<title>윤담 관리자 - 예약 조회</title>
 <link rel="icon" href="../assets/favicon.ico">
 <link rel="stylesheet" href="../css/style.css">
 </head>
@@ -12,15 +12,22 @@
   <img class="logo-icon" src="../assets/icon-192.png" alt="윤담">
   <span class="brand-font">윤담 관리자</span>
   <nav>
-    <a href="today.html" class="active">오늘</a>
-    <a href="calendar.html">예약 조회</a>
+    <a href="today.html">오늘</a>
+    <a href="calendar.html" class="active">예약 조회</a>
     <a href="tablemap.html">테이블맵</a>
     <a href="#" onclick="logout()">로그아웃</a>
   </nav>
 </header>
 
 <main class="container wide">
-  <h1 class="page-title" id="dateTitle">오늘의 예약</h1>
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <button class="btn-secondary" id="prevDay">◀ 전날</button>
+    <input type="date" id="dateInput">
+    <button class="btn-secondary" id="nextDay">다음날 ▶</button>
+    <button class="btn-secondary" id="gotoToday">오늘</button>
+  </div>
+
+  <h1 class="page-title" id="dateTitle">예약 조회</h1>
 
   <div class="dash-grid">
     <div class="dash-card" style="background:#4A90D9;"><div class="num" id="cTotal">0</div><div class="label">전체</div></div>
@@ -33,22 +40,16 @@
 </main>
 
 <div class="fab-row">
-  <button onclick="openModal('phone')">+ 전화 예약</button>
-  <button onclick="openModal('walkin')">+ 현장 고객</button>
+  <button onclick="openModal()">+ 전화 예약</button>
 </div>
 
-<!-- 전화예약 / 현장고객 등록 모달 -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box">
-    <h2 class="section-title" id="modalTitle">전화 예약 등록</h2>
-    <div id="modalDateRow">
-      <label>날짜</label>
-      <input type="date" id="mDate">
-    </div>
-    <div id="modalTimeRow">
-      <label>시간</label>
-      <select id="mTime"></select>
-    </div>
+    <h2 class="section-title">전화 예약 등록</h2>
+    <label>날짜</label>
+    <input type="date" id="mDate">
+    <label>시간</label>
+    <select id="mTime"></select>
     <label>인원</label>
     <input type="text" id="mParty" placeholder="숫자만 입력 (예: 4)">
     <label>이름</label>
@@ -75,14 +76,51 @@
 <script src="../js/booking.js"></script>
 <script src="../js/admin.js"></script>
 <script>
+let selectedDate = todayStr();
+let currentQueryRef = null;
+
 requireLogin(() => {
-  document.getElementById("dateTitle").textContent = "오늘의 예약 · " + formatDateKorean(todayStr());
-  listenToday();
+  document.getElementById("dateInput").value = selectedDate;
+  document.getElementById("dateInput").min = "";
+  listenDate(selectedDate);
 });
 
-function listenToday() {
-  const date = todayStr();
-  db.ref("reservations").orderByChild("date").equalTo(date).on("value", (snap) => {
+document.getElementById("dateInput").addEventListener("change", (e) => {
+  if (!e.target.value) return;
+  selectedDate = e.target.value;
+  listenDate(selectedDate);
+});
+document.getElementById("prevDay").addEventListener("click", () => {
+  selectedDate = shiftDate(selectedDate, -1);
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+document.getElementById("nextDay").addEventListener("click", () => {
+  selectedDate = shiftDate(selectedDate, 1);
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+document.getElementById("gotoToday").addEventListener("click", () => {
+  selectedDate = todayStr();
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+
+function shiftDate(dateStr, deltaDays) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function listenDate(date) {
+  if (currentQueryRef) currentQueryRef.off();
+  document.getElementById("dateTitle").textContent =
+    (date === todayStr() ? "오늘 · " : "") + formatDateKorean(date);
+  currentQueryRef = db.ref("reservations").orderByChild("date").equalTo(date);
+  currentQueryRef.on("value", (snap) => {
     const list = [];
     snap.forEach((child) => list.push({ id: child.key, ...child.val() }));
     list.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
@@ -101,7 +139,7 @@ function renderCounts(list) {
 function renderList(list) {
   const wrap = document.getElementById("resList");
   wrap.innerHTML = "";
-  if (list.length === 0) { wrap.innerHTML = '<p class="hint">오늘 예약이 없습니다.</p>'; return; }
+  if (list.length === 0) { wrap.innerHTML = '<p class="hint">이 날짜엔 예약이 없습니다.</p>'; return; }
   list.forEach((r) => {
     const row = document.createElement("div");
     row.className = "res-row";
@@ -130,15 +168,10 @@ function renderList(list) {
   });
 }
 
-// ---------- 전화예약 / 현장고객 모달 ----------
-let modalMode = "phone";
-function openModal(mode) {
-  modalMode = mode;
-  document.getElementById("modalTitle").textContent = mode === "phone" ? "전화 예약 등록" : "현장 고객 등록";
-  document.getElementById("modalDateRow").style.display = mode === "phone" ? "block" : "none";
-  document.getElementById("modalTimeRow").style.display = mode === "phone" ? "block" : "none";
+// ---------- 전화예약 등록 모달 ----------
+function openModal() {
   document.getElementById("mErr").style.display = "none";
-  document.getElementById("mDate").value = todayStr();
+  document.getElementById("mDate").value = selectedDate;
   document.getElementById("mDate").min = todayStr();
   document.getElementById("mParty").value = "";
   document.getElementById("mName").value = "";
@@ -158,9 +191,6 @@ function fillTimeOptions() {
     opt.value = t; opt.textContent = t;
     sel.appendChild(opt);
   });
-  const now = new Date();
-  const nearest = minToTime(Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
-  if ([...sel.options].some((o) => o.value === nearest)) sel.value = nearest;
 }
 
 document.getElementById("mParty").addEventListener("input", (e) => {
@@ -185,9 +215,8 @@ document.getElementById("mSubmit").addEventListener("click", async () => {
   const name = document.getElementById("mName").value;
   const phone = document.getElementById("mPhone").value;
   const note = document.getElementById("mNote").value;
-  const date = modalMode === "phone" ? document.getElementById("mDate").value : todayStr();
-  const time = modalMode === "phone" ? document.getElementById("mTime").value
-    : minToTime(Math.floor((new Date().getHours() * 60 + new Date().getMinutes()) / 30) * 30);
+  const date = document.getElementById("mDate").value;
+  const time = document.getElementById("mTime").value;
 
   if (!party || party < 1) { err.textContent = "인원을 입력해 주세요."; err.style.display = "block"; return; }
 
@@ -201,16 +230,11 @@ document.getElementById("mSubmit").addEventListener("click", async () => {
   btn.disabled = true; btn.textContent = "처리중...";
   const result = await attemptReservation({
     date, startTime: time, partySize: party, name, phone, note,
-    source: modalMode === "phone" ? "phone" : "walkin",
-    forcedGroup,
+    source: "phone", forcedGroup,
   });
   btn.disabled = false; btn.textContent = "등록하기";
 
   if (!result.success) { err.textContent = result.message; err.style.display = "block"; return; }
-
-  if (modalMode === "walkin") {
-    await changeReservationStatus(result.reservationId, "착석");
-  }
   closeModal();
 });
 </script>
