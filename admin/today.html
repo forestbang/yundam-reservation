@@ -114,6 +114,8 @@ function renderList(list) {
         ${STATUS_LIST.map((s) => `<option value="${s}" ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
       </select>
       ${!["완료","취소","노쇼"].includes(r.status) ? `<button class="quick-done" data-id="${r.id}">바로 종료</button>` : ""}
+      <button class="table-change-btn" data-id="${r.id}" data-tables="${(r.tableIds||[]).join(',')}">테이블변경</button>
+      <button class="delete-btn" data-id="${r.id}">삭제</button>
     `;
     wrap.appendChild(row);
   });
@@ -127,6 +129,27 @@ function renderList(list) {
     btn.addEventListener("click", async (e) => {
       if (!confirm("이 예약을 지금 완료 처리하고 테이블을 바로 반납할까요?")) return;
       await changeReservationStatus(e.target.dataset.id, "완료");
+    });
+  });
+  wrap.querySelectorAll(".table-change-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      const id = e.target.dataset.id;
+      const current = e.target.dataset.tables;
+      const input = prompt("새 테이블 번호를 입력해 주세요 (쉼표로 구분)\n예: T2  또는 C1,C2", current);
+      if (!input) return;
+      const newTables = input.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+      const validIds = ALL_TABLES.map((t) => t.id);
+      const invalid = newTables.filter((t) => !validIds.includes(t));
+      if (invalid.length > 0) { alert("존재하지 않는 테이블 번호입니다: " + invalid.join(", ")); return; }
+      const result = await changeReservationTable(id, newTables);
+      if (!result.success) { alert(result.message); return; }
+      alert("테이블이 변경되었습니다.");
+    });
+  });
+  wrap.querySelectorAll(".delete-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      if (!confirm("이 예약을 완전히 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+      await deleteReservation(e.target.dataset.id);
     });
   });
 }
