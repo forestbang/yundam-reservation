@@ -77,11 +77,19 @@
       <div class="row"><span>인원</span><b id="resParty"></b></div>
       <div class="row"><span>예약자</span><b id="resName"></b></div>
       <p class="hint" style="margin-top:16px;">예약 조회/취소는 상단 "예약조회" 메뉴에서 예약번호와 전화번호로 확인하실 수 있습니다.</p>
-      <button class="btn-primary" style="margin-top:14px;" onclick="location.reload()">새 예약하기</button>
+      <button class="btn-secondary" style="margin-top:14px;" id="addCalendarBtn">📅 캘린더에 추가</button>
+      <button class="btn-primary" style="margin-top:10px;" onclick="location.reload()">새 예약하기</button>
     </div>
   </section>
 
 </main>
+
+<footer class="site-footer">
+  <p><b>윤담</b></p>
+  <p>경기 수원시 영통구 봉영로 1587 110호 (경기 수원시 영통구 영통동 959-4) · 우편번호 16703</p>
+  <p>수인분당선 영통역 8번 출구에서 185m</p>
+  <p>전화문의: 0507-1302-3890</p>
+</footer>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -91,6 +99,7 @@
 <script src="js/booking.js"></script>
 <script>
 let state = { date: null, party: null, time: null };
+let lastReservation = null;
 
 const dateInput = document.getElementById("dateInput");
 const today = new Date();
@@ -183,8 +192,58 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
   document.getElementById("resTime").textContent = result.startTime;
   document.getElementById("resParty").textContent = result.partySize + "명";
   document.getElementById("resName").textContent = name;
+  lastReservation = { ...result, name };
   goStep(5);
 });
+
+function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+function icsEscape(text) {
+  return String(text).replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+function toICSDateTime(dateStr, timeStr) {
+  return dateStr.replace(/-/g, "") + "T" + timeStr.replace(":", "") + "00";
+}
+
+function addToCalendar() {
+  if (!lastReservation) return;
+  const [h, m] = lastReservation.startTime.split(":").map(Number);
+  const endD = new Date(2000, 0, 1, h, m + BUSINESS.duration);
+  const endTime = pad2(endD.getHours()) + ":" + pad2(endD.getMinutes());
+  const dtStart = toICSDateTime(lastReservation.date, lastReservation.startTime);
+  const dtEnd = toICSDateTime(lastReservation.date, endTime);
+  const uid = lastReservation.reservationNumber + "@yundam";
+  const addr = RESTAURANT.addressRoad || "";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//윤담//예약//KO",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    "UID:" + uid,
+    "DTSTAMP:" + dtStart,
+    "DTSTART:" + dtStart,
+    "DTEND:" + dtEnd,
+    "SUMMARY:" + icsEscape("윤담 예약 (" + lastReservation.partySize + "명)"),
+    "DESCRIPTION:" + icsEscape("예약번호 " + lastReservation.reservationNumber + " / 예약자 " + lastReservation.name),
+    "LOCATION:" + icsEscape(addr),
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  const ics = lines.join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "윤담_예약_" + lastReservation.reservationNumber + ".ics";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("addCalendarBtn").addEventListener("click", addToCalendar);
 </script>
 </body>
 </html>
