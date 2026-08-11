@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 관리자 - 설정</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="../assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담 관리자</span>
+  <nav>
+    <a href="today.html">오늘</a>
+    <a href="calendar.html">예약 조회</a>
+    <a href="tablemap.html">테이블맵</a>
+    <a href="settings.html" class="active">설정</a>
+    <a href="#" onclick="logout()">로그아웃</a>
+  </nav>
+</header>
+
+<main class="container">
+  <h1 class="page-title">비밀번호 변경</h1>
+
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px;">로그인 아이디: <b id="currentEmail"></b></p>
+    <label for="currentPw">현재 비밀번호</label>
+    <input type="password" id="currentPw" autocomplete="current-password" placeholder="현재 비밀번호">
+    <label for="newPw">새 비밀번호 (6자 이상)</label>
+    <input type="password" id="newPw" autocomplete="new-password" placeholder="새 비밀번호">
+    <label for="newPw2">새 비밀번호 확인</label>
+    <input type="password" id="newPw2" autocomplete="new-password" placeholder="새 비밀번호 다시 입력">
+    <div id="err" class="error-box" style="display:none;"></div>
+    <div id="ok" class="error-box" style="display:none;background:#e6f4ea;color:#1e7a34;"></div>
+    <button class="btn-primary" id="changeBtn" style="margin-top:10px;">비밀번호 변경하기</button>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/booking.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+let currentUser = null;
+
+requireLogin((user) => {
+  currentUser = user;
+  document.getElementById("currentEmail").textContent = user.email;
+});
+
+document.getElementById("changeBtn").addEventListener("click", async () => {
+  const currentPw = document.getElementById("currentPw").value;
+  const newPw = document.getElementById("newPw").value;
+  const newPw2 = document.getElementById("newPw2").value;
+  const err = document.getElementById("err");
+  const ok = document.getElementById("ok");
+  err.style.display = "none";
+  ok.style.display = "none";
+
+  if (!currentPw || !newPw || !newPw2) {
+    err.textContent = "모든 항목을 입력해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+  if (newPw.length < 6) {
+    err.textContent = "새 비밀번호는 6자 이상이어야 합니다.";
+    err.style.display = "block";
+    return;
+  }
+  if (newPw !== newPw2) {
+    err.textContent = "새 비밀번호가 서로 다릅니다. 다시 확인해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+
+  const btn = document.getElementById("changeBtn");
+  btn.disabled = true;
+  btn.textContent = "변경 중...";
+
+  try {
+    const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPw);
+    await currentUser.reauthenticateWithCredential(credential);
+    await currentUser.updatePassword(newPw);
+    ok.textContent = "비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.";
+    ok.style.display = "block";
+    document.getElementById("currentPw").value = "";
+    document.getElementById("newPw").value = "";
+    document.getElementById("newPw2").value = "";
+  } catch (e) {
+    if (e.code === "auth/wrong-password") {
+      err.textContent = "현재 비밀번호가 일치하지 않습니다.";
+    } else if (e.code === "auth/too-many-requests") {
+      err.textContent = "시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+    } else {
+      err.textContent = "비밀번호 변경에 실패했습니다: " + e.message;
+    }
+    err.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "비밀번호 변경하기";
+  }
+});
+</script>
+</body>
+</html>

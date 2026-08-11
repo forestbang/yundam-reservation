@@ -19,7 +19,9 @@
         <label for="password">비밀번호</label>
         <input type="password" id="password" name="password" autocomplete="current-password" placeholder="비밀번호">
         <div id="err" class="error-box" style="display:none;"></div>
+        <div id="resetOk" class="error-box" style="display:none;background:#e6f4ea;color:#1e7a34;"></div>
         <button type="submit" class="btn-primary" id="loginBtn">로그인</button>
+        <button type="button" class="btn-secondary" id="resetBtn" style="width:100%;margin-top:8px;">비밀번호를 잊으셨나요?</button>
       </div>
     </form>
     <p class="hint">계정이 없으면 Firebase 콘솔 &gt; Authentication에서 이메일/비밀번호로 사용자를 먼저 추가해 주세요.</p>
@@ -32,6 +34,35 @@
 <script src="../js/firebase-config.js"></script>
 <script>
 auth.onAuthStateChanged((user) => { if (user) location.href = "today.html"; });
+
+document.getElementById("resetBtn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const err = document.getElementById("err");
+  const resetOk = document.getElementById("resetOk");
+  err.style.display = "none";
+  resetOk.style.display = "none";
+
+  if (!email) {
+    err.textContent = "먼저 이메일을 입력해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+
+  const btn = document.getElementById("resetBtn");
+  btn.disabled = true;
+  btn.textContent = "전송 중...";
+  try {
+    await auth.sendPasswordResetEmail(email);
+    resetOk.textContent = email + " 주소로 비밀번호 재설정 메일을 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.";
+    resetOk.style.display = "block";
+  } catch (e) {
+    err.textContent = "메일 전송에 실패했습니다: " + e.message;
+    err.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "비밀번호를 잊으셨나요?";
+  }
+});
 
 document.getElementById("loginForm").addEventListener("submit", async (evt) => {
   evt.preventDefault();
