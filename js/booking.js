@@ -185,3 +185,37 @@ async function releaseSingleSlot(date, tableId, slot) {
 async function cancelReservationByCustomer(reservationId) {
   return changeReservationStatus(reservationId, "취소");
 }
+
+// 관리자용: 예약을 완전히 삭제 (기록까지 지움). 자리가 아직 잠겨있으면 먼저 반납한다.
+async function deleteReservation(reservationId) {
+  const snap = await db.ref(`reservations/${reservationId}`).get();
+  const r = snap.val();
+  if (!r) return { success: false, message: "예약 정보를 찾을 수 없습니다." };
+  if (!CLOSED_STATUSES.includes(r.status)) {
+    const needed = neededSlots(r.startTime);
+    await releaseGroupSlots(r.date, r.tableIds || [], needed);
+  }
+  await db.ref(`reservations/${reservationId}`).remove();
+  return { success: true };
+}
+
+// 관리자용: 예약의 테이블을 다른 테이블로 변경. 새 테이블이 그 시간에 비어있어야 성공한다.
+async function changeReservationTable(reservationId, newTableIds) {
+  const snap = await db.ref(`reservations/${reservationId}`).get();
+  const r = snap.val();
+  if (!r) return { success: false, message: "예약 정보를 찾을 수 없습니다." };
+  const needed = neededSlots(r.startTime);
+
+  const sameGroup = (r.tableIds || []).length === newTableIds.length &&
+    (r.tableIds || []).every((t) => newTableIds.includes(t));
+  if (sameGroup) return { success: false, message: "기존과 같은 테이블입니다." };
+
+  const ok = await tryLockGroup(r.date, newTableIds, needed, reservationId);
+  if (!ok) return { success: false, message: "선택한 테이블은 그 시간에 이미 사용 중입니다." };
+
+  if (!CLOSED_STATUSES.includes(r.status)) {
+    await releaseGroupSlots(r.date, r.tableIds || [], needed);
+  }
+  await db.ref(`reservations/${reservationId}/tableIds`).set(newTableIds);
+  return { success: true };
+}
