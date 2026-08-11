@@ -131,6 +131,9 @@ label { display: block; font-size: 14px; color: var(--gray); margin-bottom: 6px;
 
 .error-box { background: #FFF0EE; color: #C0392B; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
 .hint { font-size: 13px; color: var(--gray); margin: -8px 0 14px; }
+.site-footer { max-width: 480px; margin: 32px auto 20px; padding: 16px 20px 0; border-top: 1px solid var(--border); text-align: center; }
+.site-footer p { font-size: 12px; color: var(--gray); margin: 3px 0; line-height: 1.6; }
+.site-footer b { color: var(--navy); font-size: 13px; }
 
 .result-box { text-align: center; padding: 30px 16px; }
 .result-box .num { font-size: 24px; font-weight: bold; color: var(--brand); margin: 14px 0; }
@@ -151,8 +154,6 @@ label { display: block; font-size: 14px; color: var(--gray); margin-bottom: 6px;
 .res-row .info { flex: 1; min-width: 140px; font-size: 14px; }
 .res-row select.status-select { width: auto; margin: 0; padding: 8px 10px; font-size: 13px; }
 .res-row .quick-done { background: var(--green); color: white; border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
-.res-row .table-change-btn { background: var(--blue); color: white; border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
-.res-row .delete-btn { background: var(--red); color: white; border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
 
 .fab-row { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; padding: 0 16px; display: flex; gap: 10px; }
 .fab-row button { flex: 1; padding: 16px; border: none; border-radius: 12px; background: var(--navy); color: white; font-weight: bold; font-size: 15px; cursor: pointer; }
