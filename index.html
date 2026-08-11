@@ -2,188 +2,68 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>윤담 - 예약하기</title>
-<link rel="icon" href="assets/favicon.ico">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 관리자 로그인</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-
-<header class="top-bar">
-  <img class="logo-icon" src="assets/icon-192.png" alt="윤담">
-  <span class="brand-font">윤담</span>
-  <nav>
-    <a href="index.html" class="active">예약</a>
-    <a href="menu.html">메뉴</a>
-    <a href="lookup.html">예약조회</a>
-  </nav>
-</header>
-
 <main class="container">
-
-  <!-- STEP 1: 날짜 -->
-  <section id="step1">
-    <h1 class="page-title">STEP 1. 날짜를 선택해 주세요</h1>
-    <div class="card">
-      <label for="dateInput">방문 날짜 (오늘부터 2주 이내, 일요일 휴무)</label>
-      <input type="date" id="dateInput">
-      <div id="dateError" class="error-box" style="display:none;"></div>
-      <button class="btn-primary" id="step1Next" disabled>다음</button>
-    </div>
-  </section>
-
-  <!-- STEP 2: 인원 -->
-  <section id="step2" style="display:none;">
-    <h1 class="page-title">STEP 2. 인원을 선택해 주세요</h1>
-    <div class="card" id="partyButtons"></div>
-    <button class="btn-secondary" onclick="goStep(1)">이전</button>
-  </section>
-
-  <!-- STEP 3: 시간 -->
-  <section id="step3" style="display:none;">
-    <h1 class="page-title">STEP 3. 예약 가능한 시간을 선택해 주세요</h1>
-    <div class="card">
-      <div id="timeLoading">시간을 확인하고 있어요...</div>
-      <div class="slot-grid" id="timeSlots"></div>
-    </div>
-    <button class="btn-secondary" onclick="goStep(2)">이전</button>
-  </section>
-
-  <!-- STEP 4: 정보 입력 -->
-  <section id="step4" style="display:none;">
-    <h1 class="page-title">STEP 4. 예약자 정보를 입력해 주세요</h1>
-    <div class="card">
-      <label>예약자명 (2글자 이상, 실명/닉네임 모두 가능)</label>
-      <input type="text" id="nameInput" placeholder="예: 김철수 또는 별명">
-      <label>전화번호</label>
-      <input type="tel" id="phoneInput" placeholder="010-0000-0000">
-      <label>요청사항 (선택)</label>
-      <textarea id="noteInput" rows="3" placeholder="아이 동반, 알레르기, 좌석 요청 등"></textarea>
-      <div id="formError" class="error-box" style="display:none;"></div>
-      <button class="btn-primary" id="submitBtn">예약 완료하기</button>
-    </div>
-    <button class="btn-secondary" onclick="goStep(3)">이전</button>
-  </section>
-
-  <!-- STEP 5: 완료 -->
-  <section id="step5" style="display:none;">
-    <div class="card result-box">
-      <div style="font-size:40px;">✅</div>
-      <h1 class="page-title" style="text-align:center;">예약이 완료되었습니다</h1>
-      <div class="num" id="resNumber"></div>
-      <div class="row"><span>날짜</span><b id="resDate"></b></div>
-      <div class="row"><span>시간</span><b id="resTime"></b></div>
-      <div class="row"><span>인원</span><b id="resParty"></b></div>
-      <div class="row"><span>예약자</span><b id="resName"></b></div>
-      <p class="hint" style="margin-top:16px;">예약 조회/취소는 상단 "예약조회" 메뉴에서 예약번호와 전화번호로 확인하실 수 있습니다.</p>
-      <button class="btn-primary" style="margin-top:14px;" onclick="location.reload()">새 예약하기</button>
-    </div>
-  </section>
-
+  <div class="login-box">
+    <img src="../assets/icon-192.png" alt="윤담">
+    <h1 class="page-title brand-font" style="font-size:26px;">윤담 관리자</h1>
+    <form id="loginForm" autocomplete="on">
+      <div class="card" style="text-align:left;">
+        <label for="email">이메일</label>
+        <input type="email" id="email" name="email" autocomplete="username" placeholder="admin@yundam.com">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="비밀번호">
+        <div id="err" class="error-box" style="display:none;"></div>
+        <button type="submit" class="btn-primary" id="loginBtn">로그인</button>
+      </div>
+    </form>
+    <p class="hint">계정이 없으면 Firebase 콘솔 &gt; Authentication에서 이메일/비밀번호로 사용자를 먼저 추가해 주세요.</p>
+  </div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/common.js"></script>
-<script src="js/booking.js"></script>
+<script src="../js/firebase-config.js"></script>
 <script>
-let state = { date: null, party: null, time: null };
+auth.onAuthStateChanged((user) => { if (user) location.href = "today.html"; });
 
-const dateInput = document.getElementById("dateInput");
-const today = new Date();
-const min = todayStr();
-const maxD = new Date(); maxD.setDate(maxD.getDate() + BUSINESS.bookingWindowDays);
-dateInput.min = min;
-dateInput.max = toDateStr(maxD);
-
-dateInput.addEventListener("change", () => {
-  const check = isDateBookable(dateInput.value);
-  const err = document.getElementById("dateError");
-  if (!check.ok) {
-    err.textContent = check.reason;
-    err.style.display = "block";
-    document.getElementById("step1Next").disabled = true;
-  } else {
-    err.style.display = "none";
-    state.date = dateInput.value;
-    document.getElementById("step1Next").disabled = false;
-  }
-});
-
-document.getElementById("step1Next").addEventListener("click", () => goStep(2));
-
-function goStep(n) {
-  for (let i = 1; i <= 5; i++) document.getElementById("step" + i).style.display = i === n ? "block" : "none";
-  if (n === 2) renderPartyButtons();
-  if (n === 3) loadTimeSlots();
-}
-
-function renderPartyButtons() {
-  const wrap = document.getElementById("partyButtons");
-  wrap.innerHTML = "";
-  for (let n = 1; n <= BUSINESS.maxOnlinePartySize; n++) {
-    const b = document.createElement("button");
-    b.className = "big-btn" + (state.party === n ? " selected" : "");
-    b.textContent = n + "명";
-    b.onclick = () => { state.party = n; state.time = null; goStep(3); };
-    wrap.appendChild(b);
-  }
-  const phoneBtn = document.createElement("button");
-  phoneBtn.className = "big-btn disabled";
-  phoneBtn.textContent = "5명 이상 (전화문의" + (RESTAURANT.phone ? " " + RESTAURANT.phone : "") + ")";
-  wrap.appendChild(phoneBtn);
-}
-
-async function loadTimeSlots() {
-  document.getElementById("timeLoading").style.display = "block";
-  document.getElementById("timeSlots").innerHTML = "";
-  const allSlots = generateTimeSlots();
-  const available = await getAvailableTimesForParty(state.date, state.party);
-  document.getElementById("timeLoading").style.display = "none";
-  const wrap = document.getElementById("timeSlots");
-  allSlots.forEach((slot) => {
-    const ok = available.includes(slot);
-    const b = document.createElement("button");
-    b.className = "big-btn" + (ok ? "" : " disabled") + (state.time === slot ? " selected" : "");
-    b.textContent = ok ? slot : slot + " 마감";
-    b.disabled = !ok;
-    if (ok) b.onclick = () => { state.time = slot; goStep(4); };
-    wrap.appendChild(b);
-  });
-}
-
-document.getElementById("submitBtn").addEventListener("click", async () => {
-  const name = document.getElementById("nameInput").value;
-  const phone = document.getElementById("phoneInput").value;
-  const note = document.getElementById("noteInput").value;
-  const err = document.getElementById("formError");
+document.getElementById("loginForm").addEventListener("submit", async (evt) => {
+  evt.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const err = document.getElementById("err");
   err.style.display = "none";
 
-  const btn = document.getElementById("submitBtn");
-  btn.disabled = true; btn.textContent = "처리중...";
-
-  const result = await attemptReservation({
-    date: state.date, startTime: state.time, partySize: state.party,
-    name, phone, note, source: "online",
-  });
-
-  btn.disabled = false; btn.textContent = "예약 완료하기";
-
-  if (!result.success) {
-    err.textContent = result.message;
+  if (!email) {
+    err.textContent = "이메일을 입력해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+  if (!password) {
+    err.textContent = "비밀번호를 입력해 주세요.";
     err.style.display = "block";
     return;
   }
 
-  document.getElementById("resNumber").textContent = result.reservationNumber;
-  document.getElementById("resDate").textContent = formatDateKorean(result.date);
-  document.getElementById("resTime").textContent = result.startTime;
-  document.getElementById("resParty").textContent = result.partySize + "명";
-  document.getElementById("resName").textContent = name;
-  goStep(5);
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.textContent = "로그인 중...";
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    location.href = "today.html";
+  } catch (e) {
+    err.textContent = "로그인 실패: 이메일 또는 비밀번호를 확인해 주세요.";
+    err.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "로그인";
+  }
 });
 </script>
 </body>
