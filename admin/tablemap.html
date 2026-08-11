@@ -28,6 +28,20 @@
   .t-status-occupied { background: #e8963b; }
   .legend-row { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:14px; font-size:13px; }
   .legend-dot { display:inline-block; width:14px; height:14px; border-radius:4px; margin-right:6px; vertical-align:-2px; }
+  .view-toggle { display:flex; gap:8px; margin-bottom:16px; }
+  .view-toggle button.active { background: var(--brand,#e94e1b); color:#fff; border-color: var(--brand,#e94e1b); }
+  .timeline-wrap { overflow-x:auto; }
+  table.timeline { border-collapse: collapse; width: 100%; font-size: 11px; min-width: 640px; }
+  table.timeline th, table.timeline td { border: 1px solid #ddd; text-align: center; padding: 5px 3px; white-space: nowrap; }
+  table.timeline thead th { background:#faf6f0; font-weight:700; position:sticky; top:0; z-index:2; }
+  table.timeline th.row-head, table.timeline td.row-head {
+    position: sticky; left: 0; background: #fff; font-weight: 700; z-index: 1; text-align:left; padding-left:8px;
+  }
+  table.timeline thead th.row-head { z-index: 3; }
+  table.timeline td.slot-empty { background: #f2f2f2; }
+  table.timeline td.slot-reserved { background: #4a90d9; color:#fff; cursor:pointer; }
+  table.timeline td.slot-occupied { background: #e8963b; color:#fff; cursor:pointer; }
+  table.timeline td.break-col { border-left: 3px solid #999; }
 </style>
 </head>
 <body>
@@ -38,7 +52,6 @@
     <a href="today.html">오늘</a>
     <a href="calendar.html">예약 조회</a>
     <a href="tablemap.html" class="active">테이블맵</a>
-    <a href="fix.html">데이터 정리</a>
     <a href="#" onclick="logout()">로그아웃</a>
   </nav>
 </header>
@@ -52,10 +65,24 @@
   </div>
   <h1 class="page-title" id="dateTitle">테이블맵</h1>
 
-  <div class="floor-wrap">
+  <div class="view-toggle">
+    <button class="btn-secondary active" id="viewFloorBtn">배치도 보기</button>
+    <button class="btn-secondary" id="viewGridBtn">시간표 보기</button>
+  </div>
+
+  <div class="floor-wrap" id="floorView">
     <div class="floor-plan" id="floorPlan"></div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#9e9e9e;"></span>빈 테이블</span>
+      <span><span class="legend-dot" style="background:#4a90d9;"></span>예약 있음</span>
+      <span><span class="legend-dot" style="background:#e8963b;"></span>착석/이용중</span>
+    </div>
+  </div>
+
+  <div class="timeline-wrap" id="gridView" style="display:none;">
+    <table class="timeline" id="timelineTable"></table>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#f2f2f2;border:1px solid #ccc;"></span>빈 시간</span>
       <span><span class="legend-dot" style="background:#4a90d9;"></span>예약 있음</span>
       <span><span class="legend-dot" style="background:#e8963b;"></span>착석/이용중</span>
     </div>
@@ -214,6 +241,63 @@ function paintTables() {
     if (!box) return;
     box.classList.remove("t-status-empty", "t-status-reserved", "t-status-occupied");
     box.classList.add(statusClassForTable(t.id));
+  });
+  buildTimeline();
+}
+
+document.getElementById("viewFloorBtn").addEventListener("click", () => {
+  document.getElementById("floorView").style.display = "block";
+  document.getElementById("gridView").style.display = "none";
+  document.getElementById("viewFloorBtn").classList.add("active");
+  document.getElementById("viewGridBtn").classList.remove("active");
+});
+document.getElementById("viewGridBtn").addEventListener("click", () => {
+  document.getElementById("floorView").style.display = "none";
+  document.getElementById("gridView").style.display = "block";
+  document.getElementById("viewGridBtn").classList.add("active");
+  document.getElementById("viewFloorBtn").classList.remove("active");
+});
+
+function slotStatusForTable(tableId, slot) {
+  const list = currentList.filter((r) =>
+    (r.tableIds || []).includes(tableId) &&
+    !CLOSED_STATUSES.includes(r.status) &&
+    neededSlots(r.startTime).includes(slot)
+  );
+  if (list.some((r) => ["착석", "이용중", "도착"].includes(r.status))) return "occupied";
+  if (list.length > 0) return "reserved";
+  return "empty";
+}
+
+function buildTimeline() {
+  const table = document.getElementById("timelineTable");
+  if (!table) return;
+  const slots = generateTimeSlots();
+  const rows = ALL_TABLES.map((t) => t.id);
+
+  let thead = "<thead><tr><th class=\"row-head\">테이블</th>";
+  slots.forEach((s, i) => {
+    const isBreakStart = i > 0 && timeToMin(s) - timeToMin(slots[i - 1]) > BUSINESS.interval;
+    thead += `<th${isBreakStart ? ' class="break-col"' : ''}>${s}</th>`;
+  });
+  thead += "</tr></thead>";
+
+  let tbody = "<tbody>";
+  rows.forEach((tableId) => {
+    tbody += `<tr><td class="row-head">${tableId}</td>`;
+    slots.forEach((s, i) => {
+      const isBreakStart = i > 0 && timeToMin(s) - timeToMin(slots[i - 1]) > BUSINESS.interval;
+      const status = slotStatusForTable(tableId, s);
+      tbody += `<td class="slot-${status}${isBreakStart ? ' break-col' : ''}" data-table="${tableId}"></td>`;
+    });
+    tbody += "</tr>";
+  });
+  tbody += "</tbody>";
+
+  table.innerHTML = thead + tbody;
+  table.querySelectorAll("td[data-table]").forEach((td) => {
+    if (td.classList.contains("slot-empty")) return;
+    td.addEventListener("click", () => showTableDetail(td.dataset.table));
   });
 }
 
