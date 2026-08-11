@@ -85,23 +85,29 @@ async function attemptReservation({ date, startTime, partySize, name, phone, not
   for (const group of groups) {
     const ok = await tryLockGroup(date, group, needed, reservationId);
     if (ok) {
-      const seq = await nextSequence(date);
-      const reservationNumber = generateReservationNumber(date, seq);
-      await reservationRef.set({
-        reservationNumber,
-        date,
-        startTime,
-        endTime,
-        partySize,
-        customerName: name.trim(),
-        phone: phone.trim(),
-        note: note ? note.trim() : "",
-        tableIds: group,
-        status: "예약",
-        source: source || "online",
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-      });
-      return { success: true, reservationNumber, tableIds: group, reservationId, date, startTime, endTime, partySize, name };
+      try {
+        const seq = await nextSequence(date);
+        const reservationNumber = generateReservationNumber(date, seq);
+        await reservationRef.set({
+          reservationNumber,
+          date,
+          startTime,
+          endTime,
+          partySize,
+          customerName: name.trim(),
+          phone: phone.trim(),
+          note: note ? note.trim() : "",
+          tableIds: group,
+          status: "예약",
+          source: source || "online",
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        return { success: true, reservationNumber, tableIds: group, reservationId, date, startTime, endTime, partySize, name };
+      } catch (e) {
+        // 예약 기록 저장에 실패하면 잠갔던 자리를 즉시 반납한다 (유령 잠금 방지)
+        await releaseGroupSlots(date, group, needed);
+        return { success: false, message: "예약 처리 중 오류가 발생했습니다. 다시 시도해 주세요." };
+      }
     }
   }
   return { success: false, message: "선택하신 시간에 예약 가능한 자리가 없습니다. 다른 시간을 선택해 주세요." };
