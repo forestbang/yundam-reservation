@@ -12,14 +12,16 @@
   <div class="login-box">
     <img src="../assets/icon-192.png" alt="윤담">
     <h1 class="page-title brand-font" style="font-size:26px;">윤담 관리자</h1>
-    <div class="card" style="text-align:left;">
-      <label>이메일</label>
-      <input type="text" id="email" placeholder="admin@yundam.com">
-      <label>비밀번호</label>
-      <input type="text" id="password" placeholder="비밀번호" style="-webkit-text-security:disc;">
-      <div id="err" class="error-box" style="display:none;"></div>
-      <button class="btn-primary" id="loginBtn">로그인</button>
-    </div>
+    <form id="loginForm" autocomplete="on">
+      <div class="card" style="text-align:left;">
+        <label for="email">이메일</label>
+        <input type="email" id="email" name="email" autocomplete="username" placeholder="admin@yundam.com" value="admin@yundam.com">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="비밀번호">
+        <div id="err" class="error-box" style="display:none;"></div>
+        <button type="submit" class="btn-primary" id="loginBtn">로그인</button>
+      </div>
+    </form>
     <p class="hint">계정이 없으면 Firebase 콘솔 &gt; Authentication에서 이메일/비밀번호로 사용자를 먼저 추가해 주세요.</p>
   </div>
 </main>
@@ -31,17 +33,36 @@
 <script>
 auth.onAuthStateChanged((user) => { if (user) location.href = "today.html"; });
 
-document.getElementById("loginBtn").addEventListener("click", async () => {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+document.getElementById("loginForm").addEventListener("submit", async (evt) => {
+  evt.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
   const err = document.getElementById("err");
   err.style.display = "none";
+
+  if (!email) {
+    err.textContent = "이메일을 입력해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+  if (!password) {
+    err.textContent = "비밀번호를 입력해 주세요.";
+    err.style.display = "block";
+    return;
+  }
+
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.textContent = "로그인 중...";
   try {
     await auth.signInWithEmailAndPassword(email, password);
     location.href = "today.html";
   } catch (e) {
     err.textContent = "로그인 실패: 이메일 또는 비밀번호를 확인해 주세요.";
     err.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "로그인";
   }
 });
 </script>
