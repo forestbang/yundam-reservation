@@ -26,6 +26,7 @@
   .t-status-empty { background: #9e9e9e; }
   .t-status-reserved { background: #4a90d9; }
   .t-status-occupied { background: #e8963b; }
+  .t-status-ghost { background: #8e44ad; }
   .legend-row { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:14px; font-size:13px; }
   .legend-dot { display:inline-block; width:14px; height:14px; border-radius:4px; margin-right:6px; vertical-align:-2px; }
   .view-toggle { display:flex; gap:8px; margin-bottom:16px; }
@@ -41,7 +42,12 @@
   table.timeline td.slot-empty { background: #f2f2f2; }
   table.timeline td.slot-reserved { background: #4a90d9; color:#fff; cursor:pointer; }
   table.timeline td.slot-occupied { background: #e8963b; color:#fff; cursor:pointer; }
+  table.timeline td.slot-ghost { background: #8e44ad; color:#fff; cursor:pointer; }
   table.timeline td.break-col { border-left: 3px solid #999; }
+  .ghost-release-btn {
+    background: #8e44ad; color: #fff; border: none; border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -76,6 +82,7 @@
       <span><span class="legend-dot" style="background:#9e9e9e;"></span>빈 테이블</span>
       <span><span class="legend-dot" style="background:#4a90d9;"></span>예약 있음</span>
       <span><span class="legend-dot" style="background:#e8963b;"></span>착석/이용중</span>
+      <span><span class="legend-dot" style="background:#8e44ad;"></span>원인불명 잠금(확인 필요)</span>
     </div>
   </div>
 
@@ -85,6 +92,7 @@
       <span><span class="legend-dot" style="background:#f2f2f2;border:1px solid #ccc;"></span>빈 시간</span>
       <span><span class="legend-dot" style="background:#4a90d9;"></span>예약 있음</span>
       <span><span class="legend-dot" style="background:#e8963b;"></span>착석/이용중</span>
+      <span><span class="legend-dot" style="background:#8e44ad;"></span>원인불명 잠금(확인 필요)</span>
     </div>
   </div>
 </main>
@@ -173,7 +181,9 @@ function buildFloorPlan() {
 
 let selectedDate = todayStr();
 let currentQueryRef = null;
+let currentIndexRef = null;
 let currentList = [];
+let currentIndex = {};
 
 requireLogin(() => {
   buildFloorPlan();
@@ -213,6 +223,7 @@ function shiftDate(dateStr, deltaDays) {
 
 function listenDate(date) {
   if (currentQueryRef) currentQueryRef.off();
+  if (currentIndexRef) currentIndexRef.off();
   document.getElementById("dateTitle").textContent =
     "테이블맵 · " + (date === todayStr() ? "오늘 · " : "") + formatDateKorean(date);
   currentQueryRef = db.ref("reservations").orderByChild("date").equalTo(date);
@@ -222,16 +233,31 @@ function listenDate(date) {
     currentList.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
     paintTables();
   });
+  currentIndexRef = db.ref(`tableBookingIndex/${date}`);
+  currentIndexRef.on("value", (snap) => {
+    currentIndex = snap.val() || {};
+    paintTables();
+  });
 }
 
 function reservationsForTable(tableId) {
   return currentList.filter((r) => (r.tableIds || []).includes(tableId) && !["취소", "노쇼"].includes(r.status));
 }
 
+// 잠겨있지만(tableBookingIndex) 실제 예약 기록과 연결되지 않은 "유령" 시간대 찾기
+function ghostSlotsForTable(tableId) {
+  const locked = currentIndex[tableId] || {};
+  const openList = reservationsForTable(tableId);
+  return Object.keys(locked).filter((slot) =>
+    !openList.some((r) => neededSlots(r.startTime).includes(slot))
+  );
+}
+
 function statusClassForTable(tableId) {
   const list = reservationsForTable(tableId);
   if (list.some((r) => ["착석", "이용중", "도착"].includes(r.status))) return "t-status-occupied";
   if (list.some((r) => r.status === "예약")) return "t-status-reserved";
+  if (ghostSlotsForTable(tableId).length > 0) return "t-status-ghost";
   return "t-status-empty";
 }
 
@@ -239,7 +265,7 @@ function paintTables() {
   TABLE_LAYOUT.forEach((t) => {
     const box = document.getElementById("box-" + t.id);
     if (!box) return;
-    box.classList.remove("t-status-empty", "t-status-reserved", "t-status-occupied");
+    box.classList.remove("t-status-empty", "t-status-reserved", "t-status-occupied", "t-status-ghost");
     box.classList.add(statusClassForTable(t.id));
   });
   buildTimeline();
@@ -266,6 +292,7 @@ function slotStatusForTable(tableId, slot) {
   );
   if (list.some((r) => ["착석", "이용중", "도착"].includes(r.status))) return "occupied";
   if (list.length > 0) return "reserved";
+  if ((currentIndex[tableId] || {})[slot]) return "ghost";
   return "empty";
 }
 
@@ -307,10 +334,13 @@ function showTableDetail(tableId) {
   const list = reservationsForTable(tableId).concat(
     currentList.filter((r) => (r.tableIds || []).includes(tableId) && ["취소", "노쇼"].includes(r.status))
   );
-  if (list.length === 0) {
-    wrap.innerHTML = '<p class="hint">이 날짜엔 예약이 없습니다.</p>';
+  const ghosts = ghostSlotsForTable(tableId).sort();
+
+  let html = "";
+  if (list.length === 0 && ghosts.length === 0) {
+    html = '<p class="hint">이 날짜엔 예약이 없습니다.</p>';
   } else {
-    wrap.innerHTML = list.map((r) => `
+    html += list.map((r) => `
       <div class="res-row" style="flex-wrap:wrap;">
         <span class="time">${r.startTime}</span>
         <span class="info"><b>${r.customerName}</b> · ${r.partySize}명 <span class="badge ${STATUS_COLOR_CLASS[r.status] || ''}">${r.status}</span></span>
@@ -319,13 +349,32 @@ function showTableDetail(tableId) {
         </select>
       </div>
     `).join("");
-    wrap.querySelectorAll(".status-select").forEach((sel) => {
-      sel.addEventListener("change", async (e) => {
-        await changeReservationStatus(e.target.dataset.id, e.target.value);
-        showTableDetail(tableId);
-      });
-    });
+
+    if (ghosts.length > 0) {
+      html += `<p class="hint" style="margin:14px 0 6px;color:#8e44ad;">아래 시간대는 예약 기록 없이 자리만 잠겨있어요 (예약 도중 화면이 닫혔을 때 생길 수 있어요). 실제 예약이 아니라면 잠금 해제해 주세요.</p>`;
+      html += ghosts.map((slot) => `
+        <div class="res-row" style="flex-wrap:wrap;">
+          <span class="time">${slot}</span>
+          <span class="info"><span class="badge" style="background:#8e44ad;color:#fff;">원인불명 잠금</span></span>
+          <button class="ghost-release-btn" data-table="${tableId}" data-slot="${slot}">잠금 해제</button>
+        </div>
+      `).join("");
+    }
   }
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll(".status-select").forEach((sel) => {
+    sel.addEventListener("change", async (e) => {
+      await changeReservationStatus(e.target.dataset.id, e.target.value);
+      showTableDetail(tableId);
+    });
+  });
+  wrap.querySelectorAll(".ghost-release-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      await releaseSingleSlot(selectedDate, e.target.dataset.table, e.target.dataset.slot);
+      showTableDetail(tableId);
+    });
+  });
   document.getElementById("modalOverlay").classList.add("open");
 }
 function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
