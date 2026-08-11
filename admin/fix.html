@@ -60,7 +60,7 @@ document.getElementById("fixBtn").addEventListener("click", async () => {
   try {
     const resSnap = await db.ref("reservations").orderByChild("date").equalTo(date).get();
     const reservations = [];
-    resSnap.forEach((child) => reservations.push({ id: child.key, ...child.val() }));
+    resSnap.forEach((child) => { reservations.push({ id: child.key, ...child.val() }); });
 
     const expected = {};
     reservations.forEach((r) => {

@@ -85,7 +85,7 @@ function listenToday() {
   const date = todayStr();
   db.ref("reservations").orderByChild("date").equalTo(date).on("value", (snap) => {
     const list = [];
-    snap.forEach((child) => list.push({ id: child.key, ...child.val() }));
+    snap.forEach((child) => { list.push({ id: child.key, ...child.val() }); });
     list.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
     renderList(list);
     renderCounts(list);

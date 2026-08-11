@@ -230,7 +230,7 @@ function listenDate(date) {
   currentQueryRef = db.ref("reservations").orderByChild("date").equalTo(date);
   currentQueryRef.on("value", (snap) => {
     currentList = [];
-    snap.forEach((child) => currentList.push({ id: child.key, ...child.val() }));
+    snap.forEach((child) => { currentList.push({ id: child.key, ...child.val() }); });
     currentList.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
     paintTables();
   });
