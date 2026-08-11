@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 관리자 - 테이블맵</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .floor-wrap { max-width: 640px; margin: 0 auto; }
+  .floor-plan {
+    position: relative; width: 100%; padding-bottom: 108%;
+    background: #faf6f0; border: 2px solid #222; border-radius: 14px;
+    box-sizing: border-box;
+  }
+  .t-box {
+    position: absolute; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer;
+    font-size: 13px; text-align: center; line-height: 1.3;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.18); transition: transform .1s;
+    border: none; padding: 0;
+  }
+  .t-box:active { transform: scale(0.96); }
+  .t-fixed { background: #2c3e50; color: #fff; cursor: default; box-shadow: none; font-size: 12px; }
+  .t-label { position: absolute; font-size: 11px; color: #555; }
+  .t-status-empty { background: #9e9e9e; }
+  .t-status-reserved { background: #4a90d9; }
+  .t-status-occupied { background: #e8963b; }
+  .legend-row { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:14px; font-size:13px; }
+  .legend-dot { display:inline-block; width:14px; height:14px; border-radius:4px; margin-right:6px; vertical-align:-2px; }
+</style>
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="../assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담 관리자</span>
+  <nav>
+    <a href="today.html">오늘</a>
+    <a href="calendar.html">예약 조회</a>
+    <a href="tablemap.html" class="active">테이블맵</a>
+    <a href="#" onclick="logout()">로그아웃</a>
+  </nav>
+</header>
+
+<main class="container wide">
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <button class="btn-secondary" id="prevDay">◀ 전날</button>
+    <input type="date" id="dateInput">
+    <button class="btn-secondary" id="nextDay">다음날 ▶</button>
+    <button class="btn-secondary" id="gotoToday">오늘</button>
+  </div>
+  <h1 class="page-title" id="dateTitle">테이블맵</h1>
+
+  <div class="floor-wrap">
+    <div class="floor-plan" id="floorPlan"></div>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#9e9e9e;"></span>빈 테이블</span>
+      <span><span class="legend-dot" style="background:#4a90d9;"></span>예약 있음</span>
+      <span><span class="legend-dot" style="background:#e8963b;"></span>착석/이용중</span>
+    </div>
+  </div>
+</main>
+
+<!-- 테이블 상세 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h2 class="section-title" id="detailTitle">테이블</h2>
+    <div id="detailList"></div>
+    <button class="btn-secondary" style="width:100%; margin-top:14px;" onclick="closeModal()">닫기</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/booking.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+// 실제 매장 배치 기준 좌표 (x,y,w,h) — 캔버스 기준 가로 13 x 세로 14, 원점 좌하단
+const LAYOUT_W = 13, LAYOUT_H = 14;
+const TABLE_LAYOUT = [
+  { id: "T1", x: 0.6,  y: 10.3, w: 1.8, h: 2.0 },
+  { id: "T2", x: 3.6,  y: 10.3, w: 1.8, h: 2.0 },
+  { id: "T3", x: 0.6,  y: 7.7,  w: 1.8, h: 2.0 },
+  { id: "T4", x: 3.6,  y: 7.7,  w: 1.8, h: 2.0 },
+  { id: "T5", x: 0.6,  y: 4.5,  w: 1.8, h: 2.0 },
+  { id: "T6", x: 0.6,  y: 2.7,  w: 1.8, h: 1.5 },
+  { id: "C1", x: 7.3,  y: 8.15, w: 1.3, h: 1.1 },
+  { id: "C2", x: 8.7,  y: 8.15, w: 1.3, h: 1.1 },
+  { id: "C3", x: 10.1, y: 8.15, w: 1.3, h: 1.1 },
+  { id: "C4", x: 5.6,  y: 6.7,  w: 1.2, h: 1.0 },
+  { id: "C5", x: 5.6,  y: 5.5,  w: 1.2, h: 1.0 },
+  { id: "C6", x: 5.6,  y: 4.3,  w: 1.2, h: 1.0 },
+  { id: "C7", x: 5.6,  y: 3.1,  w: 1.2, h: 1.0 },
+  { id: "C8", x: 5.6,  y: 1.9,  w: 1.2, h: 1.0 },
+];
+const FIXED_LAYOUT = [
+  { label: "출입문", x: 0.6,  y: 13.0, w: 2.0, h: 0.2, fixed: true, text: true },
+  { label: "접수대", x: 4.6,  y: 12.7, w: 1.6, h: 0.9 },
+  { label: "주방",   x: 7.0,  y: 7.0,  w: 4.6, h: 0.9 },
+  { label: "주방",   x: 7.0,  y: 1.2,  w: 0.9, h: 6.7 },
+];
+
+function toCss(item) {
+  const left = (item.x / LAYOUT_W) * 100;
+  const top = ((LAYOUT_H - item.y - item.h) / LAYOUT_H) * 100;
+  const width = (item.w / LAYOUT_W) * 100;
+  const height = (item.h / LAYOUT_H) * 100;
+  return { left: left + "%", top: top + "%", width: width + "%", height: height + "%" };
+}
+
+const capacityOf = (id) => (ALL_TABLES.find((t) => t.id === id) || {}).capacity || "";
+
+function buildFloorPlan() {
+  const plan = document.getElementById("floorPlan");
+  plan.innerHTML = "";
+
+  FIXED_LAYOUT.forEach((f) => {
+    const css = toCss(f);
+    const div = document.createElement("div");
+    div.className = "t-box t-fixed";
+    Object.assign(div.style, css);
+    div.textContent = f.label;
+    plan.appendChild(div);
+  });
+
+  TABLE_LAYOUT.forEach((t) => {
+    const css = toCss(t);
+    const div = document.createElement("div");
+    div.className = "t-box t-status-empty";
+    div.id = "box-" + t.id;
+    Object.assign(div.style, css);
+    div.innerHTML = `${t.id}<br><span style="font-weight:400;font-size:11px;">${capacityOf(t.id)}인</span>`;
+    div.addEventListener("click", () => showTableDetail(t.id));
+    plan.appendChild(div);
+  });
+}
+
+let selectedDate = todayStr();
+let currentQueryRef = null;
+let currentList = [];
+
+requireLogin(() => {
+  buildFloorPlan();
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+
+document.getElementById("dateInput").addEventListener("change", (e) => {
+  if (!e.target.value) return;
+  selectedDate = e.target.value;
+  listenDate(selectedDate);
+});
+document.getElementById("prevDay").addEventListener("click", () => {
+  selectedDate = shiftDate(selectedDate, -1);
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+document.getElementById("nextDay").addEventListener("click", () => {
+  selectedDate = shiftDate(selectedDate, 1);
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+document.getElementById("gotoToday").addEventListener("click", () => {
+  selectedDate = todayStr();
+  document.getElementById("dateInput").value = selectedDate;
+  listenDate(selectedDate);
+});
+
+function shiftDate(dateStr, deltaDays) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function listenDate(date) {
+  if (currentQueryRef) currentQueryRef.off();
+  document.getElementById("dateTitle").textContent =
+    "테이블맵 · " + (date === todayStr() ? "오늘 · " : "") + formatDateKorean(date);
+  currentQueryRef = db.ref("reservations").orderByChild("date").equalTo(date);
+  currentQueryRef.on("value", (snap) => {
+    currentList = [];
+    snap.forEach((child) => currentList.push({ id: child.key, ...child.val() }));
+    currentList.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
+    paintTables();
+  });
+}
+
+function reservationsForTable(tableId) {
+  return currentList.filter((r) => (r.tableIds || []).includes(tableId) && !["취소", "노쇼"].includes(r.status));
+}
+
+function statusClassForTable(tableId) {
+  const list = reservationsForTable(tableId);
+  if (list.some((r) => ["착석", "이용중", "도착"].includes(r.status))) return "t-status-occupied";
+  if (list.some((r) => r.status === "예약")) return "t-status-reserved";
+  return "t-status-empty";
+}
+
+function paintTables() {
+  TABLE_LAYOUT.forEach((t) => {
+    const box = document.getElementById("box-" + t.id);
+    if (!box) return;
+    box.classList.remove("t-status-empty", "t-status-reserved", "t-status-occupied");
+    box.classList.add(statusClassForTable(t.id));
+  });
+}
+
+function showTableDetail(tableId) {
+  document.getElementById("detailTitle").textContent = `${tableId} · ${formatDateKorean(selectedDate)}`;
+  const wrap = document.getElementById("detailList");
+  const list = reservationsForTable(tableId).concat(
+    currentList.filter((r) => (r.tableIds || []).includes(tableId) && ["취소", "노쇼"].includes(r.status))
+  );
+  if (list.length === 0) {
+    wrap.innerHTML = '<p class="hint">이 날짜엔 예약이 없습니다.</p>';
+  } else {
+    wrap.innerHTML = list.map((r) => `
+      <div class="res-row" style="flex-wrap:wrap;">
+        <span class="time">${r.startTime}</span>
+        <span class="info"><b>${r.customerName}</b> · ${r.partySize}명 <span class="badge ${STATUS_COLOR_CLASS[r.status] || ''}">${r.status}</span></span>
+        <select class="status-select" data-id="${r.id}">
+          ${STATUS_LIST.map((s) => `<option value="${s}" ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
+        </select>
+      </div>
+    `).join("");
+    wrap.querySelectorAll(".status-select").forEach((sel) => {
+      sel.addEventListener("change", async (e) => {
+        await changeReservationStatus(e.target.dataset.id, e.target.value);
+        showTableDetail(tableId);
+      });
+    });
+  }
+  document.getElementById("modalOverlay").classList.add("open");
+}
+function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 관리자 - 오늘의 예약</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="../assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담 관리자</span>
+  <nav>
+    <a href="today.html" class="active">오늘</a>
+    <a href="calendar.html">예약 조회</a>
+    <a href="tablemap.html">테이블맵</a>
+    <a href="#" onclick="logout()">로그아웃</a>
+  </nav>
+</header>
+
+<main class="container wide">
+  <h1 class="page-title" id="dateTitle">오늘의 예약</h1>
+
+  <div class="dash-grid">
+    <div class="dash-card" style="background:#4A90D9;"><div class="num" id="cTotal">0</div><div class="label">전체</div></div>
+    <div class="dash-card" style="background:#E8963B;"><div class="num" id="cActive">0</div><div class="label">이용중</div></div>
+    <div class="dash-card" style="background:#7FB069;"><div class="num" id="cDone">0</div><div class="label">완료</div></div>
+    <div class="dash-card" style="background:#767676;"><div class="num" id="cRest">0</div><div class="label">취소/노쇼</div></div>
+  </div>
+
+  <div id="resList"></div>
+</main>
+
+<div class="fab-row">
+  <button onclick="openModal('phone')">+ 전화 예약</button>
+  <button onclick="openModal('walkin')">+ 현장 고객</button>
+</div>
+
+<!-- 전화예약 / 현장고객 등록 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h2 class="section-title" id="modalTitle">전화 예약 등록</h2>
+    <div id="modalDateRow">
+      <label>날짜</label>
+      <input type="date" id="mDate">
+    </div>
+    <div id="modalTimeRow">
+      <label>시간</label>
+      <select id="mTime"></select>
+    </div>
+    <label>인원</label>
+    <input type="text" id="mParty" placeholder="숫자만 입력 (예: 4)">
+    <label>이름</label>
+    <input type="text" id="mName">
+    <label>전화번호</label>
+    <input type="tel" id="mPhone">
+    <label>요청사항 (선택)</label>
+    <textarea id="mNote" rows="2"></textarea>
+    <div id="mManualWrap" style="display:none;">
+      <label>5명 이상은 테이블을 직접 선택해 주세요</label>
+      <div id="mTableChecks" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+    </div>
+    <div id="mErr" class="error-box" style="display:none;"></div>
+    <button class="btn-primary" id="mSubmit">등록하기</button>
+    <button class="btn-secondary" style="width:100%; margin-top:8px;" onclick="closeModal()">취소</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/booking.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+requireLogin(() => {
+  document.getElementById("dateTitle").textContent = "오늘의 예약 · " + formatDateKorean(todayStr());
+  listenToday();
+});
+
+function listenToday() {
+  const date = todayStr();
+  db.ref("reservations").orderByChild("date").equalTo(date).on("value", (snap) => {
+    const list = [];
+    snap.forEach((child) => list.push({ id: child.key, ...child.val() }));
+    list.sort((a, b) => (a.startTime > b.startTime ? 1 : -1));
+    renderList(list);
+    renderCounts(list);
+  });
+}
+
+function renderCounts(list) {
+  document.getElementById("cTotal").textContent = list.length;
+  document.getElementById("cActive").textContent = list.filter((r) => ["도착","착석","이용중"].includes(r.status)).length;
+  document.getElementById("cDone").textContent = list.filter((r) => r.status === "완료").length;
+  document.getElementById("cRest").textContent = list.filter((r) => ["취소","노쇼"].includes(r.status)).length;
+}
+
+function renderList(list) {
+  const wrap = document.getElementById("resList");
+  wrap.innerHTML = "";
+  if (list.length === 0) { wrap.innerHTML = '<p class="hint">오늘 예약이 없습니다.</p>'; return; }
+  list.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "res-row";
+    const tables = (r.tableIds || []).join("+");
+    row.innerHTML = `
+      <span class="time">${r.startTime}</span>
+      <span class="info"><b>${r.customerName}</b> · ${r.partySize}명 · ${tables} <span class="badge ${STATUS_COLOR_CLASS[r.status] || ''}">${r.status}</span></span>
+      <select class="status-select" data-id="${r.id}">
+        ${STATUS_LIST.map((s) => `<option value="${s}" ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
+      </select>
+      ${!["완료","취소","노쇼"].includes(r.status) ? `<button class="quick-done" data-id="${r.id}">바로 종료</button>` : ""}
+    `;
+    wrap.appendChild(row);
+  });
+
+  wrap.querySelectorAll(".status-select").forEach((sel) => {
+    sel.addEventListener("change", async (e) => {
+      await changeReservationStatus(e.target.dataset.id, e.target.value);
+    });
+  });
+  wrap.querySelectorAll(".quick-done").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      if (!confirm("이 예약을 지금 완료 처리하고 테이블을 바로 반납할까요?")) return;
+      await changeReservationStatus(e.target.dataset.id, "완료");
+    });
+  });
+}
+
+// ---------- 전화예약 / 현장고객 모달 ----------
+let modalMode = "phone";
+function openModal(mode) {
+  modalMode = mode;
+  document.getElementById("modalTitle").textContent = mode === "phone" ? "전화 예약 등록" : "현장 고객 등록";
+  document.getElementById("modalDateRow").style.display = mode === "phone" ? "block" : "none";
+  document.getElementById("modalTimeRow").style.display = mode === "phone" ? "block" : "none";
+  document.getElementById("mErr").style.display = "none";
+  document.getElementById("mDate").value = todayStr();
+  document.getElementById("mDate").min = todayStr();
+  document.getElementById("mParty").value = "";
+  document.getElementById("mName").value = "";
+  document.getElementById("mPhone").value = "";
+  document.getElementById("mNote").value = "";
+  document.getElementById("mManualWrap").style.display = "none";
+  fillTimeOptions();
+  document.getElementById("modalOverlay").classList.add("open");
+}
+function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
+
+function fillTimeOptions() {
+  const sel = document.getElementById("mTime");
+  sel.innerHTML = "";
+  generateTimeSlots().forEach((t) => {
+    const opt = document.createElement("option");
+    opt.value = t; opt.textContent = t;
+    sel.appendChild(opt);
+  });
+  const now = new Date();
+  const nearest = minToTime(Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
+  if ([...sel.options].some((o) => o.value === nearest)) sel.value = nearest;
+}
+
+document.getElementById("mParty").addEventListener("input", (e) => {
+  const n = parseInt(e.target.value, 10);
+  document.getElementById("mManualWrap").style.display = n >= 5 ? "block" : "none";
+  if (n >= 5) {
+    const wrap = document.getElementById("mTableChecks");
+    wrap.innerHTML = "";
+    ALL_TABLES.forEach((t) => {
+      const label = document.createElement("label");
+      label.style.cssText = "display:flex;align-items:center;gap:4px;font-size:13px;width:auto;margin:0;";
+      label.innerHTML = `<input type="checkbox" value="${t.id}" style="width:auto;margin:0;"> ${t.id}(${t.capacity}인)`;
+      wrap.appendChild(label);
+    });
+  }
+});
+
+document.getElementById("mSubmit").addEventListener("click", async () => {
+  const err = document.getElementById("mErr");
+  err.style.display = "none";
+  const party = parseInt(document.getElementById("mParty").value, 10);
+  const name = document.getElementById("mName").value;
+  const phone = document.getElementById("mPhone").value;
+  const note = document.getElementById("mNote").value;
+  const date = modalMode === "phone" ? document.getElementById("mDate").value : todayStr();
+  const time = modalMode === "phone" ? document.getElementById("mTime").value
+    : minToTime(Math.floor((new Date().getHours() * 60 + new Date().getMinutes()) / 30) * 30);
+
+  if (!party || party < 1) { err.textContent = "인원을 입력해 주세요."; err.style.display = "block"; return; }
+
+  let forcedGroup = null;
+  if (party >= 5) {
+    forcedGroup = [...document.querySelectorAll("#mTableChecks input:checked")].map((c) => c.value);
+    if (forcedGroup.length === 0) { err.textContent = "테이블을 1개 이상 선택해 주세요."; err.style.display = "block"; return; }
+  }
+
+  const btn = document.getElementById("mSubmit");
+  btn.disabled = true; btn.textContent = "처리중...";
+  const result = await attemptReservation({
+    date, startTime: time, partySize: party, name, phone, note,
+    source: modalMode === "phone" ? "phone" : "walkin",
+    forcedGroup,
+  });
+  btn.disabled = false; btn.textContent = "등록하기";
+
+  if (!result.success) { err.textContent = result.message; err.style.display = "block"; return; }
+
+  if (modalMode === "walkin") {
+    await changeReservationStatus(result.reservationId, "착석");
+  }
+  closeModal();
+});
+</script>
+</body>
+</html>
