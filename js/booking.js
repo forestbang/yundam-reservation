@@ -131,7 +131,7 @@ async function changeReservationStatus(reservationId, newStatus) {
   return { success: true };
 }
 
-// 예약번호 + 전화번호로 조회 (고객용)
+// 예약번호 + 전화번호로 조회 (고객용, 둘 다 있을 때)
 async function findReservationByNumberAndPhone(reservationNumber, phone) {
   const snap = await db.ref("reservations")
     .orderByChild("reservationNumber")
@@ -146,6 +146,34 @@ async function findReservationByNumberAndPhone(reservationNumber, phone) {
     }
   });
   return found;
+}
+
+// 예약번호만으로 조회 (고객용, 예약번호는 전체 기간에서 고유함)
+async function findReservationByNumber(reservationNumber) {
+  const snap = await db.ref("reservations")
+    .orderByChild("reservationNumber")
+    .equalTo(reservationNumber.trim())
+    .get();
+  if (!snap.exists()) return null;
+  let found = null;
+  snap.forEach((child) => { found = { id: child.key, ...child.val() }; });
+  return found;
+}
+
+// 전화번호만으로 조회 (고객용, 여러 건일 수 있어 목록으로 반환)
+async function findReservationsByPhone(phone) {
+  const cleanPhone = (phone || "").replace(/[^0-9]/g, "");
+  if (!cleanPhone) return [];
+  const snap = await db.ref("reservations").get();
+  const results = [];
+  snap.forEach((child) => {
+    const val = child.val();
+    if ((val.phone || "").replace(/[^0-9]/g, "") === cleanPhone) {
+      results.push({ id: child.key, ...val });
+    }
+  });
+  results.sort((a, b) => (a.date + a.startTime < b.date + b.startTime ? 1 : -1));
+  return results;
 }
 
 // 고객 취소
