@@ -97,10 +97,10 @@ const TABLE_LAYOUT = [
   { id: "C8", x: 5.6,  y: 1.9,  w: 1.2, h: 1.0 },
 ];
 const FIXED_LAYOUT = [
-  { label: "출입문", x: 0.6,  y: 13.0, w: 2.0, h: 0.2, fixed: true, text: true },
-  { label: "접수대", x: 4.6,  y: 12.7, w: 1.6, h: 0.9 },
-  { label: "주방",   x: 7.0,  y: 7.0,  w: 4.6, h: 0.9 },
-  { label: "주방",   x: 7.0,  y: 1.2,  w: 0.9, h: 6.7 },
+  { label: "출입문", x: 0.6,  y: 12.75, w: 2.0, h: 0.55, fixed: true, text: true },
+  { label: "카운터", x: 4.6,  y: 12.7, w: 1.6, h: 0.9 },
+  { label: "바",     x: 7.0,  y: 7.0,  w: 4.6, h: 0.9 },
+  { label: "바",     x: 7.0,  y: 1.2,  w: 0.9, h: 6.7 },
 ];
 
 function toCss(item) {
@@ -132,7 +132,7 @@ function buildFloorPlan() {
     div.className = "t-box t-status-empty";
     div.id = "box-" + t.id;
     Object.assign(div.style, css);
-    div.innerHTML = `${t.id}<br><span style="font-weight:400;font-size:11px;">${capacityOf(t.id)}인</span>`;
+    div.innerHTML = `${t.id} <span style="font-weight:400;font-size:11px;">${capacityOf(t.id)}인</span>`;
     div.addEventListener("click", () => showTableDetail(t.id));
     plan.appendChild(div);
   });
