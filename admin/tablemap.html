@@ -87,9 +87,9 @@ const TABLE_LAYOUT = [
   { id: "T2", x: 6.0,    y: 8.75,  w: 1.8,    h: 1.75 },
   { id: "T5", x: 0.6,    y: 4.5,   w: 1.8,    h: 2.0 },
   { id: "T6", x: 0.6,    y: 2.7,   w: 1.8,    h: 1.5 },
-  { id: "C3", x: 4.6,    y: 7.5,   w: 1.5333, h: 1.1 },
-  { id: "C2", x: 6.1333, y: 7.5,   w: 1.5333, h: 1.1 },
-  { id: "C1", x: 7.6667, y: 7.5,   w: 1.5333, h: 1.1 },
+  { id: "C3", x: 5.5,    y: 7.5,   w: 1.2,    h: 1.0 },
+  { id: "C2", x: 6.7,    y: 7.5,   w: 1.2,    h: 1.0 },
+  { id: "C1", x: 7.9,    y: 7.5,   w: 1.2,    h: 1.0 },
   { id: "C4", x: 3.4,    y: 6.7,   w: 1.2,    h: 1.0 },
   { id: "C5", x: 3.4,    y: 5.5,   w: 1.2,    h: 1.0 },
   { id: "C6", x: 3.4,    y: 4.3,   w: 1.2,    h: 1.0 },
@@ -137,7 +137,7 @@ function buildFloorPlan() {
     div.className = "t-box t-status-empty";
     div.id = "box-" + t.id;
     Object.assign(div.style, css);
-    div.innerHTML = `${t.id} <span style="font-weight:400;font-size:11px;">${capacityOf(t.id)}인</span>`;
+    div.innerHTML = `<span>${t.id}</span><span style="font-weight:400;font-size:11px;margin-left:5px;">${capacityOf(t.id)}인</span>`;
     div.addEventListener("click", () => showTableDetail(t.id));
     plan.appendChild(div);
   });
