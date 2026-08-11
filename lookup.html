@@ -21,12 +21,15 @@
   <h1 class="page-title">예약 조회 / 취소</h1>
 
   <div class="card" id="searchCard">
-    <label>예약번호</label>
-    <input type="text" id="numInput" placeholder="예: R20260815-001">
-    <label>전화번호</label>
-    <input type="tel" id="phoneInput" placeholder="예약하실 때 입력한 전화번호">
+    <label>예약번호 또는 전화번호</label>
+    <input type="text" id="keyInput" placeholder="예: R20260815-001 또는 010-1234-5678">
     <div id="err" class="error-box" style="display:none;"></div>
     <button class="btn-primary" id="searchBtn">조회하기</button>
+  </div>
+
+  <div class="card" id="listCard" style="display:none;">
+    <p class="hint" style="margin-bottom:10px;">일치하는 예약이 여러 건입니다. 확인하실 예약을 눌러주세요.</p>
+    <div id="listWrap"></div>
   </div>
 
   <div class="card result-box" id="resultCard" style="display:none;">
@@ -50,20 +53,53 @@
 let currentReservation = null;
 
 document.getElementById("searchBtn").addEventListener("click", async () => {
-  const num = document.getElementById("numInput").value;
-  const phone = document.getElementById("phoneInput").value;
+  const key = document.getElementById("keyInput").value.trim();
   const err = document.getElementById("err");
   err.style.display = "none";
-  if (!num || !phone) { err.textContent = "예약번호와 전화번호를 모두 입력해 주세요."; err.style.display = "block"; return; }
+  document.getElementById("listCard").style.display = "none";
+  document.getElementById("resultCard").style.display = "none";
+
+  if (!key) { err.textContent = "예약번호 또는 전화번호를 입력해 주세요."; err.style.display = "block"; return; }
 
   const btn = document.getElementById("searchBtn");
   btn.disabled = true; btn.textContent = "조회중...";
-  const found = await findReservationByNumberAndPhone(num, phone);
-  btn.disabled = false; btn.textContent = "조회하기";
 
-  if (!found) { err.textContent = "일치하는 예약을 찾을 수 없습니다. 예약번호/전화번호를 다시 확인해 주세요."; err.style.display = "block"; return; }
+  const looksLikeReservationNumber = /^r/i.test(key);
 
+  if (looksLikeReservationNumber) {
+    const found = await findReservationByNumber(key);
+    btn.disabled = false; btn.textContent = "조회하기";
+    if (!found) { err.textContent = "일치하는 예약을 찾을 수 없습니다. 다시 확인해 주세요."; err.style.display = "block"; return; }
+    showResult(found);
+  } else {
+    const list = await findReservationsByPhone(key);
+    btn.disabled = false; btn.textContent = "조회하기";
+    if (list.length === 0) { err.textContent = "일치하는 예약을 찾을 수 없습니다. 다시 확인해 주세요."; err.style.display = "block"; return; }
+    if (list.length === 1) { showResult(list[0]); return; }
+    showList(list);
+  }
+});
+
+function showList(list) {
+  const wrap = document.getElementById("listWrap");
+  wrap.innerHTML = "";
+  list.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "res-row";
+    row.style.cursor = "pointer";
+    row.innerHTML = `
+      <span class="time">${formatDateKorean(r.date)} ${r.startTime}</span>
+      <span class="info"><b>${r.customerName}</b> · ${r.partySize}명 <span class="badge">${r.status}</span></span>
+    `;
+    row.addEventListener("click", () => showResult(r));
+    wrap.appendChild(row);
+  });
+  document.getElementById("listCard").style.display = "block";
+}
+
+function showResult(found) {
   currentReservation = found;
+  document.getElementById("listCard").style.display = "none";
   document.getElementById("rNum").textContent = found.reservationNumber;
   document.getElementById("rDate").textContent = formatDateKorean(found.date);
   document.getElementById("rTime").textContent = found.startTime;
@@ -72,7 +108,7 @@ document.getElementById("searchBtn").addEventListener("click", async () => {
   document.getElementById("rStatus").textContent = found.status;
   document.getElementById("resultCard").style.display = "block";
   document.getElementById("cancelBtn").style.display = CLOSED_STATUSES.includes(found.status) ? "none" : "block";
-});
+}
 
 document.getElementById("cancelBtn").addEventListener("click", async () => {
   if (!currentReservation) return;
