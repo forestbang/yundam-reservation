@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤담 관리자 - 예약 데이터 정리</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<header class="top-bar">
+  <img class="logo-icon" src="../assets/icon-192.png" alt="윤담">
+  <span class="brand-font">윤담 관리자</span>
+  <nav>
+    <a href="today.html">오늘</a>
+    <a href="calendar.html">예약 조회</a>
+    <a href="tablemap.html">테이블맵</a>
+    <a href="fix.html" class="active">데이터 정리</a>
+    <a href="#" onclick="logout()">로그아웃</a>
+  </nav>
+</header>
+
+<main class="container wide">
+  <h1 class="page-title">예약 데이터 정리</h1>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px;">
+      고객이 예약을 시도하다가 중간에 화면을 닫거나 인터넷이 끊기면,
+      "이 시간엔 자리 없음" 표시만 남고 실제 예약 기록은 생기지 않는 경우가 있어요.
+      아래 버튼을 누르면 선택한 날짜에서 이런 "유령 예약"을 찾아서 정리하고, 그 시간을 다시 예약 가능하게 풀어줍니다.
+      실제 정상적인 예약에는 영향이 없습니다.
+    </p>
+    <label>날짜</label>
+    <input type="date" id="fixDate">
+    <button class="btn-primary" id="fixBtn" style="margin-top:12px;">이 날짜 예약 데이터 정리하기</button>
+    <div id="fixResult" style="margin-top:16px; white-space:pre-line; font-size:14px;"></div>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/booking.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+requireLogin(() => {
+  document.getElementById("fixDate").value = todayStr();
+});
+
+document.getElementById("fixBtn").addEventListener("click", async () => {
+  const date = document.getElementById("fixDate").value;
+  if (!date) return;
+  const btn = document.getElementById("fixBtn");
+  const out = document.getElementById("fixResult");
+  btn.disabled = true;
+  btn.textContent = "정리 중...";
+  out.textContent = "";
+
+  try {
+    const resSnap = await db.ref("reservations").orderByChild("date").equalTo(date).get();
+    const reservations = [];
+    resSnap.forEach((child) => reservations.push({ id: child.key, ...child.val() }));
+
+    const expected = {};
+    reservations.forEach((r) => {
+      if (CLOSED_STATUSES.includes(r.status)) return;
+      const needed = neededSlots(r.startTime);
+      (r.tableIds || []).forEach((t) => {
+        expected[t] = expected[t] || {};
+        needed.forEach((s) => { expected[t][s] = r.id; });
+      });
+    });
+
+    const idxSnap = await db.ref(`tableBookingIndex/${date}`).get();
+    const actual = idxSnap.val() || {};
+
+    let removed = 0;
+    const cleaned = {};
+    Object.keys(actual).forEach((tableId) => {
+      Object.keys(actual[tableId]).forEach((slot) => {
+        const lockedId = actual[tableId][slot];
+        const isValid = expected[tableId] && expected[tableId][slot] === lockedId;
+        if (isValid) {
+          cleaned[tableId] = cleaned[tableId] || {};
+          cleaned[tableId][slot] = lockedId;
+        } else {
+          removed++;
+        }
+      });
+    });
+
+    await db.ref(`tableBookingIndex/${date}`).set(Object.keys(cleaned).length ? cleaned : null);
+
+    out.textContent = removed > 0
+      ? `정리 완료: ${date} 날짜에서 유령 예약 ${removed}건을 지웠습니다. 이제 해당 시간이 다시 예약 가능해집니다.`
+      : `정리할 항목이 없습니다. ${date} 날짜는 이미 정상 상태입니다.`;
+  } catch (e) {
+    out.textContent = "오류가 발생했습니다: " + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "이 날짜 예약 데이터 정리하기";
+  }
+});
+</script>
+</body>
+</html>
