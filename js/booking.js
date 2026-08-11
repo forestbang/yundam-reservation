@@ -176,6 +176,11 @@ async function findReservationsByPhone(phone) {
   return results;
 }
 
+// 관리자용: 특정 테이블의 특정 시간 잠금만 해제 (실제 예약과 연결 안 된 유령 잠금 정리)
+async function releaseSingleSlot(date, tableId, slot) {
+  await db.ref(`tableBookingIndex/${date}/${tableId}/${slot}`).remove();
+}
+
 // 고객 취소
 async function cancelReservationByCustomer(reservationId) {
   return changeReservationStatus(reservationId, "취소");
