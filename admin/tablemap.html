@@ -58,7 +58,6 @@
     <a href="today.html">오늘</a>
     <a href="calendar.html">예약 조회</a>
     <a href="tablemap.html" class="active">테이블맵</a>
-    <a href="fix.html">데이터 정리</a>
     <a href="#" onclick="logout()">로그아웃</a>
   </nav>
 </header>
@@ -104,6 +103,18 @@
     <h2 class="section-title" id="detailTitle">테이블</h2>
     <div id="detailList"></div>
     <button class="btn-secondary" style="width:100%; margin-top:14px;" onclick="closeModal()">닫기</button>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="tableChangeModal">
+  <div class="modal-box">
+    <h2 class="section-title">테이블 변경</h2>
+    <p class="hint" style="margin-bottom:10px;">옮길 테이블을 선택해 주세요 (여러 개 선택 가능).</p>
+    <div id="tableChangeChecks" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+    <div id="tableChangeErr" class="error-box" style="display:none;"></div>
+    <button class="btn-primary" id="tableChangeSave">변경 저장</button>
+    <button class="btn-secondary" style="width:100%; margin-top:8px;" onclick="closeTableChangeModal()">취소</button>
   </div>
 </div>
 
@@ -379,19 +390,11 @@ function showTableDetail(tableId) {
     });
   });
   wrap.querySelectorAll(".table-change-btn").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
+    btn.addEventListener("click", (e) => {
       const id = e.target.dataset.id;
-      const current = e.target.dataset.tables;
-      const input = prompt("새 테이블 번호를 입력해 주세요 (쉼표로 구분)\n예: T2  또는 C1,C2", current);
-      if (!input) return;
-      const newTables = input.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
-      const validIds = ALL_TABLES.map((t) => t.id);
-      const invalid = newTables.filter((t) => !validIds.includes(t));
-      if (invalid.length > 0) { alert("존재하지 않는 테이블 번호입니다: " + invalid.join(", ")); return; }
-      const result = await changeReservationTable(id, newTables);
-      if (!result.success) { alert(result.message); return; }
-      alert("테이블이 변경되었습니다.");
-      showTableDetail(tableId);
+      const current = (e.target.dataset.tables || "").split(",").filter(Boolean);
+      tableChangeRefreshFn = () => showTableDetail(tableId);
+      openTableChangeModal(id, current);
     });
   });
   wrap.querySelectorAll(".delete-btn").forEach((btn) => {
@@ -404,6 +407,37 @@ function showTableDetail(tableId) {
   document.getElementById("modalOverlay").classList.add("open");
 }
 function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
+
+let tableChangeTargetId = null;
+let tableChangeRefreshFn = null;
+function openTableChangeModal(reservationId, currentTables) {
+  tableChangeTargetId = reservationId;
+  document.getElementById("tableChangeErr").style.display = "none";
+  const wrap = document.getElementById("tableChangeChecks");
+  wrap.innerHTML = "";
+  ALL_TABLES.forEach((t) => {
+    const label = document.createElement("label");
+    label.style.cssText = "display:flex;align-items:center;gap:4px;font-size:13px;width:auto;margin:0;border:1px solid var(--border,#ddd);padding:6px 10px;border-radius:8px;";
+    const checked = currentTables.includes(t.id) ? "checked" : "";
+    label.innerHTML = `<input type="checkbox" value="${t.id}" ${checked} style="width:auto;margin:0;"> ${t.id} (${t.capacity}인)`;
+    wrap.appendChild(label);
+  });
+  document.getElementById("tableChangeModal").classList.add("open");
+}
+function closeTableChangeModal() {
+  document.getElementById("tableChangeModal").classList.remove("open");
+}
+document.getElementById("tableChangeSave").addEventListener("click", async () => {
+  const err = document.getElementById("tableChangeErr");
+  err.style.display = "none";
+  const checked = [...document.querySelectorAll("#tableChangeChecks input:checked")].map((c) => c.value);
+  if (checked.length === 0) { err.textContent = "테이블을 1개 이상 선택해 주세요."; err.style.display = "block"; return; }
+  const result = await changeReservationTable(tableChangeTargetId, checked);
+  if (!result.success) { err.textContent = result.message; err.style.display = "block"; return; }
+  closeTableChangeModal();
+  if (tableChangeRefreshFn) tableChangeRefreshFn();
+});
+
 </script>
 </body>
 </html>
